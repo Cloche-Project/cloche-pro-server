@@ -43,3 +43,22 @@ activation, firewall ports, storage and SELinux (`:Z`). Source: [files/system/us
 
 - CI needs the `SIGNING_SECRET` repo secret (Cosign private key matching `cosign.pub`).
 - `ID` in `os-release` stays commented out: enabling it broke bootc-image-builder before.
+
+## Pending / open decisions
+
+- **Tailscale zone is fully open.** `tailscale0` sits in the firewalld `trusted` zone, so every port (including
+  enabled NAS services) is reachable from anywhere on the tailnet. Accepted for now; tighten (e.g. a dedicated
+  zone with explicit services, or Tailscale ACLs) as needs appear.
+- **User/SSH-key provisioning is not wired up.** sshd is key-only and root login is off, so a fresh install has no
+  SSH access until a user and key exist. Options (see below); none is baked into the CI ISO yet.
+- **Not yet built or booted.** Recipe, package names, `kargs.d` and the update-timer drop-in are only statically
+  checked (`tests/run.sh`); verify in a bootc VM after the first CI build (see the design spec).
+
+### User provisioning options
+
+- **ISO via bootc-image-builder** (bare metal): a `config.toml` with `[[customizations.user]]` (`name`, `key`,
+  optional `password`, `groups`), or a custom kickstart via `customizations.installer.kickstart.contents`. The two
+  are mutually exclusive. Prefer an SSH `key`: a `password` is stored in plain text in the config and the ISO.
+- **cloud-init** (installed): works on VMs/cloud with a datasource; on bare metal it needs a NoCloud seed
+  (a volume labelled `CIDATA`). Ignition is not available on CentOS bootc.
+- **Cockpit** still accepts the account password (PAM), independent of the sshd key-only setting.
