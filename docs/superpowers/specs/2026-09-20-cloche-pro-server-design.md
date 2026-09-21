@@ -6,7 +6,8 @@ A new bootc image, `ghcr.io/cloche-project/cloche-pro-server`, built on `ghcr.io
 (CentOS Stream 10 bootc base). It targets the maintainer's homelab servers, some of which are laptops
 running headless.
 
-Primary role: **container host** (Podman + Quadlet/systemd). No virtualization, no Kubernetes, no NAS stack.
+Primary role: **container host** (Podman + Quadlet/systemd). No virtualization, no Kubernetes. NAS is provided
+only as optional, disabled-by-default container Quadlets (see "NAS").
 
 ## Structure
 
@@ -59,9 +60,36 @@ reboot never lands at an arbitrary time.
 3. `/usr/lib/bootc/kargs.d/10-cloche-server.toml` with `consoleblank=60`: the console blanks after 60 s
    and wakes on a keypress. The machines are headless, so the screen is only used occasionally.
 
+## NAS (containers only, disabled by default)
+
+The image installs **no NAS software on the host**: no `samba`, `nfs-utils` or ZFS. Instead it ships example
+Quadlets under `/usr/share/cloche-server/quadlets/`, none of them active:
+
+- `samba.container`: SMB file sharing.
+- `syncthing.container`: file synchronization.
+- `nextcloud.*`: complete stack (Nextcloud app, database and Redis cache, as a `.pod` or several `.container`
+  units). Uses a simple database and **no reverse proxy**; TLS is left to the operator (Tailscale Serve or a
+  Caddy added later).
+
+Activation is per machine and manual: copy or symlink the wanted Quadlet into `/etc/containers/systemd/`,
+adjust `Volume=` to the local mount point, then `systemctl daemon-reload && systemctl start <name>`.
+
+Decisions recorded:
+
+- **Firewall:** the image opens no NAS ports (SMB 445, Syncthing 22000/tcp and 21027/udp, Nextcloud web).
+  Each Quadlet carries the matching `firewall-cmd` line commented out; the operator opens only what is enabled.
+- **Storage:** the image takes no position (no mdadm, ZFS or fixed mount layout). Disks are mounted per machine
+  via Cockpit (`cockpit-storaged`) or systemd mount units; `smartmontools` is already installed.
+- **SELinux:** Quadlets mount data with `:Z`/`:z`. The README must call this out, as a missing relabel is the
+  most common "Permission denied" for host-mounted data.
+- **Docs:** `/usr/share/cloche-server/README` (shipped from `files/system/usr/share/cloche-server/`) describes
+  the activation steps, the firewall lines and the SELinux note, and the repo README links to it.
+
 ## Verification
 
 - `tests/`: validate the recipe YAML and check that the `files/` drop-ins exist with the expected keys.
+  Also check that the example Quadlets exist and are valid units (`podman-system-generator --dryrun` in CI,
+  if available in the image).
 - CI: build and Cosign-sign as in the other repos.
 - After a build, boot the image in a bootc VM and check that:
   - the enabled services are active;
@@ -72,4 +100,5 @@ reboot never lands at an arbitrary time.
 
 ## Out of scope
 
-Virtualization (libvirt), Kubernetes nodes, NAS/storage stack, desktop environments, custom RPMs from `rpm-repo`.
+Virtualization (libvirt), Kubernetes nodes, host-level NAS/storage stack (Samba/NFS/ZFS/mdadm on the host; NFS
+containers), a reverse proxy/TLS for Nextcloud, desktop environments, custom RPMs from `rpm-repo`.
