@@ -15,7 +15,7 @@ New repo `cloche-pro-server`, same shape as `cloche-pro-workstation`:
 
 - `recipes/cloche-pro-server.yml`
 - `files/system/{etc,usr}` overlay
-- `.github/workflows/{build,build-iso}.yml`, copied from `cloche-pro-workstation` with the recipe name adapted
+- `.github/workflows/build.yml`, copied from `cloche-pro-workstation` with the recipe name adapted. No ISO workflow: ISOs come from `cloche-utils/cloche-build` (variant `pro-server`)
 - `tests/`, `README.md`
 
 Base image: `ghcr.io/cloche-project/cloche-pro`, `image-version: latest`.
