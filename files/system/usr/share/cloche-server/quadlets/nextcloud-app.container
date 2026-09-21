@@ -1,0 +1,22 @@
+[Unit]
+Description=Nextcloud application
+Requires=nextcloud-db.service nextcloud-redis.service
+After=nextcloud-db.service nextcloud-redis.service
+
+[Container]
+ContainerName=nextcloud-app
+Pod=nextcloud.pod
+Image=docker.io/library/nextcloud:stable-apache
+EnvironmentFile=/etc/cloche-server/nextcloud.env
+# Containers of a pod share localhost.
+Environment=POSTGRES_HOST=127.0.0.1
+Environment=REDIS_HOST=127.0.0.1
+# :Z relabels for SELinux; without it the container gets "Permission denied".
+Volume=/var/srv/nextcloud/html:/var/www/html:Z
+AutoUpdate=registry
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

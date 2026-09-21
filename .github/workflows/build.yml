@@ -1,0 +1,84 @@
+name: bluebuild
+on:
+  schedule:
+    - cron:
+        "00 07 * * *" # build at 06:00 UTC every day
+        # (20 minutes after last ublue images start building)
+  push:
+    paths-ignore: # don't rebuild if only documentation has changed
+      - "**.md"
+
+  pull_request:
+  workflow_dispatch: # allow manually triggering builds
+concurrency:
+  # only run one build at a time
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+  cancel-in-progress: true
+jobs:
+  bluebuild:
+    name: Build Custom Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    strategy:
+      fail-fast: false # stop GH from cancelling all matrix builds if one fails
+      matrix:
+        recipe:
+          # !! Add your recipes here
+          - cloche-pro-server.yml
+    steps:
+      # the build is fully handled by the reusable github action
+      - name: Build Custom Image
+        uses: blue-build/github-action@24d146df25adc2cf579e918efe2d9bff6adea408 # v1.11
+        with:
+          recipe: ${{ matrix.recipe }}
+          cosign_private_key: ${{ secrets.SIGNING_SECRET }}
+          registry_token: ${{ github.token }}
+          pr_event_number: ${{ github.event.number }}
+          # enabled by default, disable if your image is small and you want faster builds
+          maximize_build_space: true
+
+  scan:
+    name: Scan Image
+    needs: bluebuild
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        recipe:
+          - cloche-pro-server.yml
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Resolve published image reference
+        run: |
+          NAME=$(yq -r '.name' "recipes/${{ matrix.recipe }}")
+          if [[ ! "$NAME" =~ ^[a-z0-9-]+$ ]]; then
+            echo "::error::Unexpected recipe name: $NAME" >&2
+            exit 1
+          fi
+          echo "IMAGE_TAG=ghcr.io/cloche-project/${NAME}:latest" >> "$GITHUB_ENV"
+
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        continue-on-error: true
+        timeout-minutes: 15
+        with:
+          image-ref: ${{ env.IMAGE_TAG }}
+          format: table
+          exit-code: '0' # report-only for now; flip to '1' once noise is triaged (Fase 3)
+          severity: 'CRITICAL,HIGH'
+
+      - name: Scan image with Grype
+        uses: anchore/scan-action@8576240a41341d866dbd7ebc72cd9fc0ef023f54 # v7.4.2
+        continue-on-error: true
+        timeout-minutes: 15
+        with:
+          image: registry:${{ env.IMAGE_TAG }}
+          fail-build: false # report-only, same reasoning as above
+          severity-cutoff: high

@@ -1,0 +1,32 @@
+name: Build Server ISO
+on:
+  workflow_dispatch: #
+jobs:
+  generate-iso:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepares directory
+        run: mkdir -p ./output
+
+      - name: Pull OCI image
+        run: sudo podman pull ghcr.io/cloche-project/cloche-pro-server:latest
+
+      - name: Build ISO
+        run: |
+          sudo podman run \
+            --rm \
+            --privileged \
+            --pull=newer \
+            --security-opt label=type:unconfined_t \
+            -v ${{ github.workspace }}/output:/output \
+            -v /var/lib/containers/storage:/var/lib/containers/storage \
+            quay.io/centos-bootc/bootc-image-builder:latest \
+            --type anaconda-iso \
+            ghcr.io/cloche-project/cloche-pro-server:latest
+
+      - name: Upload ISO
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cloche-pro-server-iso
+          path: ./output/*.iso
+          retention-days: 3

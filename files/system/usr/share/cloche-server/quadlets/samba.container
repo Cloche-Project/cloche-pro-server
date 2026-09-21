@@ -1,0 +1,26 @@
+# Samba (SMB) file sharing. DISABLED by default: this file lives outside the Quadlet search path.
+# To enable: cp to /etc/containers/systemd/, edit Volume=/env, then `systemctl daemon-reload && systemctl start samba`.
+# Open the port: firewall-cmd --permanent --add-port=445/tcp && firewall-cmd --reload
+# Account/share settings go in /etc/cloche-server/samba.env, e.g.:
+#   ACCOUNT_alice=changeme
+#   UID_alice=1000
+#   SAMBA_VOLUME_CONFIG_data=[data]; path=/shares/data; valid users = alice; read only = no
+[Unit]
+Description=Samba (SMB) file server
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+ContainerName=samba
+Image=ghcr.io/servercontainers/samba:latest
+EnvironmentFile=/etc/cloche-server/samba.env
+PublishPort=445:445
+# :Z relabels for SELinux; without it the container gets "Permission denied".
+Volume=/var/srv/nas:/shares/data:Z
+AutoUpdate=registry
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

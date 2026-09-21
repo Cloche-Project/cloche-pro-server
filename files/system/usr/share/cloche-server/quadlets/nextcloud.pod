@@ -1,0 +1,11 @@
+# Nextcloud stack (app + PostgreSQL + Redis in one pod). DISABLED by default: this file lives outside
+# the Quadlet search path. To enable, copy ALL nextcloud*.{pod,container} files and nextcloud.env.example
+# (as /etc/cloche-server/nextcloud.env, with real passwords) then `systemctl daemon-reload && systemctl start nextcloud-pod`.
+# No reverse proxy/TLS is provided; put Tailscale Serve or Caddy in front.
+# Open the port: firewall-cmd --permanent --add-port=8080/tcp && firewall-cmd --reload
+[Pod]
+PodName=nextcloud
+PublishPort=8080:80
+
+[Install]
+WantedBy=multi-user.target

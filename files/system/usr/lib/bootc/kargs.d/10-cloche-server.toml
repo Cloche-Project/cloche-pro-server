@@ -1,0 +1,2 @@
+# Blank the console after 60 s (laptop panel); any keypress wakes it.
+kargs = ["consoleblank=60"]

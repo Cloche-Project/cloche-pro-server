@@ -1,0 +1,13 @@
+[Unit]
+Description=Nextcloud Redis cache
+
+[Container]
+ContainerName=nextcloud-redis
+Pod=nextcloud.pod
+Image=docker.io/library/redis:7-alpine
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

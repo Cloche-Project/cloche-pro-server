@@ -1,0 +1,71 @@
+name: cloche-pro-server
+description: "Cloche PRO Server"
+
+base-image: ghcr.io/cloche-project/cloche-pro
+image-version: latest
+
+modules:
+
+  - type: os-release
+    properties:
+      #ID: cloche-pro
+      NAME: Cloche PRO Server
+      PRETTY_NAME: Cloche PRO 10 Server (Lunar Slate)
+      HOME_URL: https://github.com/augustofmarques/cloche
+      BUG_REPORT_URL: https://github.com/augustofmarques/cloche/issues
+      SUPPORT_URL: https://github.com/augustofmarques/cloche
+      DEFAULT_HOSTNAME: cloche-server
+
+  - type: containerfile
+    snippets:
+      - |
+        RUN dnf install -y --allowerasing --nobest \
+          podman \
+          podman-compose \
+          buildah \
+          skopeo \
+          crun \
+          netavark \
+          aardvark-dns \
+          cockpit \
+          cockpit-podman \
+          cockpit-storaged \
+          cockpit-networkmanager \
+          openssh-server \
+          tmux \
+          btop \
+          git \
+          zsh \
+          cloud-init \
+          firewalld \
+          chrony \
+          smartmontools && \
+          dnf clean all
+      - RUN curl -fsSL https://pkgs.tailscale.com/stable/centos/10/tailscale.repo -o /etc/yum.repos.d/tailscale.repo
+      - RUN dnf install -y tailscale && dnf clean all
+
+  # Runs after the dnf installs above; there are no cloche-*-defaults RPMs here,
+  # so nothing in files/ can shadow a package.
+  - type: files
+    files:
+      - source: system/usr
+        destination: /usr
+      - source: system/etc
+        destination: /etc
+
+  - type: systemd
+    system:
+      enabled:
+        - sshd.service
+        - cockpit.socket
+        - tailscaled.service
+        - firewalld.service
+        - chronyd.service
+        - podman-restart.service
+        - podman-auto-update.timer
+        - bootc-fetch-apply-updates.timer
+      masked:
+        - sleep.target
+        - suspend.target
+        - hibernate.target
+        - hybrid-sleep.target

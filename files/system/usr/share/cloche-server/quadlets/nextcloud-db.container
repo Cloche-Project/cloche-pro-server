@@ -1,0 +1,16 @@
+[Unit]
+Description=Nextcloud PostgreSQL
+
+[Container]
+ContainerName=nextcloud-db
+Pod=nextcloud.pod
+Image=docker.io/library/postgres:16-alpine
+EnvironmentFile=/etc/cloche-server/nextcloud.env
+# :Z relabels for SELinux; without it the container gets "Permission denied".
+Volume=/var/srv/nextcloud/db:/var/lib/postgresql/data:Z
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
